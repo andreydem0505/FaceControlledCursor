@@ -2,8 +2,6 @@ import cv2
 import mediapipe as mp
 import numpy as np
 from pynput.mouse import Controller
-import time
-from math import radians
 
 
 mouse = Controller()
@@ -38,16 +36,11 @@ landmark_indices = [
 ]
 
 WINDOW_NAME = 'Face Controlled Cursor'
-difference_to_move = 12
-step = radians(1)
-difference_up = difference_to_move
-difference_down = difference_to_move
-difference_left = difference_to_move
-difference_right = difference_to_move
-calibration = True
-calibration_y = []
+bound_up = -10
+bound_down = 10
+bound_left = 10
+bound_right = -10
 cap = cv2.VideoCapture(0)
-start_time = time.time()
 
 while cap.isOpened():
     success, image = cap.read()
@@ -92,32 +85,16 @@ while cap.isOpened():
             y_angle = angles[0]
             x_angle = angles[1]
 
-            if calibration:
-                current_time = time.time()
-                cv2.putText(image, f"Calibration: {5 - int(current_time - start_time)}", (10, 30),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-                cv2.putText(image, "Look straight, do not move", (10, 60),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-                dif_time = current_time - start_time
-                if dif_time >= 2:
-                    calibration_y.append(y_angle)
-                if dif_time >= 5:
-                    avg_y = sum(calibration_y) / len(calibration_y)
-                    del calibration_y
-                    difference_down = abs(int(avg_y + difference_to_move))
-                    difference_up = abs(int(avg_y - difference_to_move))
-                    calibration = False
-            else:
-                # движение мыши
-                if x_angle < -difference_right: # вправо
-                    mouse.move(-int(x_angle) - difference_right, 0)
-                elif x_angle > difference_left: # влево
-                    mouse.move(-int(x_angle) + difference_left, 0)
+            # Движение мыши
+            if x_angle < bound_right: # вправо
+                mouse.move(int(bound_right - x_angle), 0)
+            elif x_angle > bound_left: # влево
+                mouse.move(int(bound_left - x_angle), 0)
 
-                if y_angle < -difference_up: # вверх
-                    mouse.move(0, int(y_angle) + difference_up)
-                elif y_angle > difference_down: # вниз
-                    mouse.move(0, int(y_angle) - difference_down)
+            if y_angle < bound_up: # вверх
+                mouse.move(0, -int(abs(y_angle - bound_up)))
+            elif y_angle > bound_down: # вниз
+                mouse.move(0, int(abs(y_angle - bound_down)))
 
             # Проекция 3D точек на 2D плоскость
             (projected_points, _) = cv2.projectPoints(
